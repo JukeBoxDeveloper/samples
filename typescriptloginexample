@@ -1,0 +1,67 @@
+import { Injectable } from '@angular/core';
+import { of as observableOf, fromEventPattern } from 'rxjs';
+import { AngularFireAuth } from 'angularfire2/auth';
+import { map } from 'rxjs/operators';
+import { auth } from 'firebase';
+import { Router } from '@angular/router';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class LoginService {
+  token: string;
+  private loginStatus = JSON.parse(localStorage.getItem('loggedIn') || 'false');
+  state = '';
+
+  uid = this.afAuth.authState.pipe(
+    map(authState => {
+      if (!authState) {
+        return null;
+      } else {
+        return authState.uid;
+      }
+    })
+  );
+
+  isAdmin = observableOf(true);
+
+  constructor(private afAuth: AngularFireAuth, private router: Router) {}
+
+  login(email, password) {
+    this.afAuth.auth
+      .signInWithEmailAndPassword(email, password)
+      .then(response => {
+        this.router.navigate(['/']);
+        this.afAuth.auth.currentUser
+          .getIdToken()
+          .then((token: string) => (this.token = token));
+        this.setLoggedIn(true);
+      });
+  }
+
+  logout() {
+    this.afAuth.auth.signOut();
+  }
+
+  getToken() {
+    this.afAuth.auth.currentUser
+      .getIdToken()
+      .then((token: string) => (this.token = token));
+    return this.token;
+  }
+
+  isAuthenticated() {
+    return this.token != null;
+  }
+
+  setLoggedIn(value: boolean) {
+    this.loginStatus = value;
+    localStorage.setItem('loggedIn', 'true');
+  }
+
+  get isLoggedIn() {
+    return JSON.parse(
+      localStorage.getItem('loggedIn') || this.loginStatus.toString()
+    );
+  }
+}
