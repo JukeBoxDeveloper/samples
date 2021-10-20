@@ -1,0 +1,41 @@
+input {
+  beats{
+    host => "localhost"
+    port => 5044
+  }
+}
+
+filter {
+    grok {
+        match => { "message" => "(?<record_id>[^|]*)(?<patterns>[^.]*)" }
+        remove_field => ["message"]        
+    }
+    
+    grok {
+        match => { "record_id" => "(?<complaint_id>[^(]*)" }
+    }
+    
+    mutate {
+        split => { "patterns" => "|"}
+    }
+    
+    split{
+        field => "patterns"
+    }
+    
+    grok {
+        match => { "patterns" => "(?<notification_id>[^(]*)(?<version>[^)]+[^.])(?<pattern>[^)]+[^.])" }
+    }
+}
+
+output {
+
+  stdout {codec => dots }
+  elasticsearch {
+  "index" => "mylogs-%{+YYYY.MM.dd}"
+  "hosts" => ["https://"]
+  "user" => "user"
+  "password" => "password"
+  } 
+  
+}
