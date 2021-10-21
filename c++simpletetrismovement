@@ -1,4 +1,4 @@
-// ConsoleTetris.cpp : This file contains the 'main' function. Program execution begins and ends there.
+/// ConsoleTetris.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 
 #include <iostream>
@@ -124,14 +124,22 @@ int main()
     int nCurrentRotation = 0;
     int nCurrentX = nFieldWidth / 2;
     int nCurrentY = 0;
-    bool bRotateHold = true;
 
+    // This is to prevent rotation from going crazy
+    bool bRotateHold = true;
+    int nSpeed = 20;
+    int nSpeedCounter = 0;
+    bool bForceFall = false;
     bool bKey[4];
+    int nScore = 0;
+    vector<int> vLines;
 
     while (!bGameOver)
     {
         // Timing
         this_thread::sleep_for(50ms);
+        nSpeedCounter++;
+        bForceFall = (nSpeedCounter == nSpeed);
 
         // Input mapping to keyboard
         for (int k = 0; k < 4; k++)                              // Right, Left, Down, Z
@@ -142,6 +150,7 @@ int main()
         nCurrentX -= (bKey[1] && HitBoxFit(nCurrentPiece, nCurrentRotation, nCurrentX - 1, nCurrentY)) ? 1 : 0;
         nCurrentY += (bKey[2] && HitBoxFit(nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY + 1)) ? 1 : 0;
 
+        // Logic to determine if we are holding the key and prevent the rotation from rotate super fast or forever
         if (bKey[3])
         {
             nCurrentRotation += (bRotateHold && HitBoxFit(nCurrentPiece, nCurrentRotation + 1, nCurrentX, nCurrentY)) ? 1 : 0;
@@ -176,7 +185,49 @@ int main()
         //    }
         //}
 
-        
+        if (bForceFall)
+        {
+            if (HitBoxFit(nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY + 1))
+                nCurrentY++; // If it can continue to drop, keep falling
+            else
+            {
+                // Lock piece
+                for (int px = 0; px < 4; px++)
+                    for (int py = 0; py < 4; py++)
+                        if (tetromino[nCurrentPiece][Rotate(px, py, nCurrentRotation)] != L'.')
+                            pField[(nCurrentY + py) * nFieldWidth + (nCurrentX + px)] = nCurrentPiece + 1;
+
+                // Check for tetris line
+                for (int py = 0; py < 4; py++)
+                    if (nCurrentY + py < nFieldHeight - 1)
+                    {
+                        bool bLine = true;
+                        for (int px = 1; px < nFieldWidth - 1; px++)
+                            bLine &= (pField[(nCurrentY + py) * nFieldWidth + px]) != 0;
+
+                        if (bLine)
+                        {
+                            // Remove Line, set to =
+                            for (int px = 1; px < nFieldWidth - 1; px++)
+                                pField[(nCurrentY + py) * nFieldWidth + px] = 8;
+                            vLines.push_back(nCurrentY + py);
+                        }
+                    }
+
+                nScore += 25;
+                if (!vLines.empty())	nScore += (1 << vLines.size()) * 100;
+                // Choose next piece
+                nCurrentX = nFieldWidth / 2;
+                nCurrentY = 0;
+                nCurrentRotation = 0;
+                nCurrentPiece = rand() % 7;
+
+                // If piece can't fit game over
+                bGameOver = !HitBoxFit(nCurrentPiece, nCurrentRotation, nCurrentX, nCurrentY);
+            }
+
+            nSpeedCounter = 0;
+        }
 
         // Render Output
 
@@ -199,13 +250,4 @@ int main()
    
 }
 
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
 
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
